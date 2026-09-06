@@ -1,19 +1,20 @@
 # The Eye — compose file for Arcane / Portainer / Dockge and other UI managers.
 #
-# Easiest path (Arcane): Projects -> Create Project -> "From Git Repo", point it
-# at this repo, set Compose File Path to "docker-compose.arcane.yml", then use
-# "Build & Deploy". Arcane clones the repo (build context) and builds the image.
-# Set DISCORD_TOKEN and TARGET_USER_ID in Arcane's environment editor.
+# The image is built by GitHub Actions (.github/workflows/docker-publish.yml) and
+# published to GHCR on every push to main. These managers just pull it — no build
+# context, no Dockerfile handling on their side.
 #
-# No git sync? Build the image on the Docker host once (docker build -t
-# theeye:latest .) and paste this file as a stack — the pre-built image is
-# reused because it is tagged theeye:latest.
+#   1. In GitHub: Packages -> the-eye -> Package settings -> make it Public
+#      (or add a GHCR pull credential in Arcane -> Settings -> Registries).
+#   2. Arcane: Projects -> Create Project -> paste this file (or sync from git).
+#   3. Set DISCORD_TOKEN and TARGET_USER_ID in Arcane's environment editor.
+#   4. Deploy. To update: push to main, wait for the Action, then redeploy / pull.
+#
+# Change the owner below if you forked to a different account.
 
 services:
   theeye:
-    build: .
-    image: theeye:latest        # name for the locally-built image
-    pull_policy: build          # always build from ./Dockerfile, never pull from a registry
+    image: ghcr.io/davidh45/the-eye:latest
     container_name: theeye_service
     init: true
     environment:
