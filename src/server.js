@@ -34,8 +34,8 @@ function wrap(fn) {
 }
 
 app.get('/api/meta', wrap(() => ({ targetUserId: safeTarget(), extent: a.extent() })));
-app.get('/api/current', wrap(() => a.current()));
-app.get('/api/summary', wrap((req) => { const { from, to } = range(req); return a.summary(from, to); }));
+app.get('/api/current', wrap((req) => a.current(tz(req))));
+app.get('/api/summary', wrap((req) => { const { from, to } = range(req); return a.summary(from, to, tz(req)); }));
 app.get('/api/timeline', wrap((req) => { const { from, to } = range(req); return a.timeline(from, to); }));
 app.get('/api/breakdown', wrap((req) => {
   const { from, to } = range(req);

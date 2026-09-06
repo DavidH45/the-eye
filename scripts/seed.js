@@ -16,7 +16,8 @@ const store = require('../src/db');
 const { reconcile } = require('../src/tracker');
 
 const DAY = 86400000;
-const start = Date.now() - 14 * DAY;
+const DAYS = Number((process.argv.find((a) => a.startsWith('--days=')) || '').split('=')[1]) || 14;
+const start = Date.now() - DAYS * DAY;
 
 const TRACKS = [
   { details: 'Midnight City', state: 'M83', album: 'Hurry Up, We\'re Dreaming' },
@@ -49,9 +50,25 @@ while (ts < Date.now()) {
   if (active && Math.random() > 0.6) {
     activities.push({ type: 0, name: pick(GAMES) });
   }
+  if (active && Math.random() > 0.7) {
+    activities.push({ type: 4, name: 'Custom Status', state: pick(['✨ vibing', 'brb', 'in a meeting', 'gaming', 'afk']) });
+  }
 
-  reconcile({ status, activities, clientStatus: { desktop: active ? 'online' : undefined } }, ts);
-  ts += (10 + Math.floor(Math.random() * 40)) * 60000; // 10–50 min steps
+  // vary the client (desktop / mobile / web), sometimes several at once
+  const clientStatus = {};
+  if (active) {
+    const primary = pick(['desktop', 'desktop', 'desktop', 'mobile', 'web']);
+    clientStatus[primary] = status;
+    if (Math.random() > 0.8) clientStatus.mobile = 'idle';
+  } else if (!asleep && Math.random() > 0.5) {
+    clientStatus.mobile = 'idle';
+  }
+
+  reconcile({ status, activities, clientStatus }, ts);
+  // finer steps near "now" so the short-range views (1h / 6h) have detail
+  const recent = Date.now() - ts < 2 * DAY;
+  const step = recent ? 2 + Math.floor(Math.random() * 8) : 8 + Math.floor(Math.random() * 32);
+  ts += step * 60000;
 }
 
 store.closeAllOpenStatusSessions(Date.now(), 'change');

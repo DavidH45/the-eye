@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>The Eye</title>
   <link rel="stylesheet" href="styles.css" />
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.4/chart.umd.min.js" defer></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.5.1/chart.umd.min.js" defer></script>
   <script src="app.js" defer></script>
 </head>
 <body>
@@ -17,30 +17,65 @@
         <p id="target" class="muted">tracking&hellip;</p>
       </div>
     </div>
-    <div id="live" class="live">
-      <span class="dot" id="live-dot"></span>
-      <span id="live-text">connecting&hellip;</span>
-    </div>
+    <label class="toggle" title="Auto-refresh every 20s">
+      <input type="checkbox" id="liveToggle" checked />
+      <span>Live</span>
+    </label>
   </header>
 
-  <section class="controls">
-    <div class="presets">
-      <button data-preset="1">24h</button>
-      <button data-preset="7" class="active">7d</button>
-      <button data-preset="30">30d</button>
-      <button data-preset="90">90d</button>
-      <button data-preset="all">All</button>
+  <!-- ------------------------------ right now ------------------------------ -->
+  <section id="now" class="now">
+    <div class="now-main">
+      <span class="now-dot" id="now-dot"></span>
+      <div class="now-head">
+        <div class="now-status" id="now-status">&hellip;</div>
+        <div class="now-since muted" id="now-since"></div>
+      </div>
     </div>
-    <label>From <input type="datetime-local" id="from" /></label>
-    <label>To <input type="datetime-local" id="to" /></label>
-    <label>Resolution
-      <select id="bucket">
-        <option value="minute">Minute</option>
-        <option value="hour" selected>Hour</option>
-        <option value="day">Day</option>
-      </select>
-    </label>
-    <button id="apply" class="primary">Apply</button>
+    <div class="now-activities" id="now-activities"></div>
+    <div class="now-side">
+      <div class="now-stat"><span class="k">Active today</span><span class="v" id="now-today">&mdash;</span></div>
+      <div class="now-stat"><span class="k">Last online</span><span class="v" id="now-lastonline">&mdash;</span></div>
+      <div class="now-stat"><span class="k">Avail. 24h</span><span class="v" id="now-avail">&mdash;</span></div>
+      <div class="now-stat"><span class="k">Tracker</span><span class="v" id="now-tracker">&mdash;</span></div>
+    </div>
+  </section>
+
+  <!-- ------------------------------ controls ------------------------------ -->
+  <section class="controls">
+    <div class="presets" id="presets">
+      <button data-range="1h">1h</button>
+      <button data-range="6h">6h</button>
+      <button data-range="12h">12h</button>
+      <button data-range="24h">24h</button>
+      <button data-range="3d">3d</button>
+      <button data-range="7d" class="active">7d</button>
+      <button data-range="30d">30d</button>
+      <button data-range="90d">90d</button>
+      <button data-range="all">All</button>
+    </div>
+    <div class="custom">
+      <label>From <input type="datetime-local" id="from" /></label>
+      <label>To <input type="datetime-local" id="to" /></label>
+      <label>Resolution
+        <select id="bucket">
+          <option value="minute">Minute</option>
+          <option value="hour" selected>Hour</option>
+          <option value="day">Day</option>
+        </select>
+      </label>
+      <button id="apply" class="primary">Apply</button>
+    </div>
+  </section>
+
+  <!-- ---------------------------- status ribbon --------------------------- -->
+  <section class="panel">
+    <div class="panel-head">
+      <h2>Status timeline</h2>
+      <div class="legend" id="ribbon-legend"></div>
+    </div>
+    <div id="ribbon" class="ribbon"></div>
+    <div id="ribbon-axis" class="ribbon-axis"></div>
   </section>
 
   <section id="cards" class="cards"></section>
@@ -51,14 +86,39 @@
       <canvas id="statusChart"></canvas>
     </div>
     <div class="panel">
-      <h2>Activity over time</h2>
+      <h2>Status over time</h2>
       <canvas id="timeChart"></canvas>
     </div>
   </section>
 
+  <section class="grid-2">
+    <div class="panel">
+      <h2>Active by hour of day <span class="muted">(local, average per day)</span></h2>
+      <canvas id="hourChart"></canvas>
+    </div>
+    <div class="panel">
+      <h2>Active by day of week <span class="muted">(average)</span></h2>
+      <canvas id="dowChart"></canvas>
+    </div>
+  </section>
+
   <section class="panel">
-    <h2>When they're online <span class="muted">(local time &mdash; darker = more active)</span></h2>
+    <div class="panel-head">
+      <h2>When they're online <span class="muted">(local time &mdash; darker = more active)</span></h2>
+      <span class="muted" id="heat-peak"></span>
+    </div>
     <div id="heatmap" class="heatmap"></div>
+  </section>
+
+  <section class="grid-2">
+    <div class="panel">
+      <h2>Daily activity <span class="muted">(stacked minutes)</span></h2>
+      <canvas id="dailyChart"></canvas>
+    </div>
+    <div class="panel">
+      <h2>Online session lengths</h2>
+      <canvas id="sessionChart"></canvas>
+    </div>
   </section>
 
   <section class="grid-2">
@@ -72,11 +132,22 @@
     </div>
   </section>
 
+  <section class="grid-2">
+    <div class="panel">
+      <h2>Devices <span class="muted">(where they're online)</span></h2>
+      <canvas id="clientChart"></canvas>
+    </div>
+    <div class="panel">
+      <h2>Status transitions</h2>
+      <div id="transitions" class="transitions"></div>
+    </div>
+  </section>
+
   <section class="panel">
     <div class="tabs">
       <button data-tab="listening" class="active">Listening log</button>
       <button data-tab="activities">Activity log</button>
-      <button data-tab="timeline">Status timeline</button>
+      <button data-tab="timeline">Status log</button>
     </div>
     <div id="tab-listening" class="tabpane"></div>
     <div id="tab-activities" class="tabpane" hidden></div>
@@ -84,5 +155,7 @@
   </section>
 
   <footer class="muted">The Eye &mdash; local presence analytics. Data is stored only on this machine.</footer>
+
+  <div id="tip" class="tip" hidden></div>
 </body>
 </html>
