@@ -67,40 +67,42 @@ Reset seeded/real data without removing the volume:
 docker compose exec theeye node scripts/reset.js
 ```
 
-### Arcane / Portainer / Dockge (UI managers)
+### Arcane (easiest — deploy straight from GitHub)
 
-These deploy pre-built images and have no build context, so build the image
-on the Docker host first, then point the stack at it.
+Arcane clones the repo and builds the image for you; nothing to do on the host.
 
-1. On the Docker host (copy or `git clone` this folder there):
+1. **Customization → Git Repositories → Add Repository**
+   - URL: `https://github.com/DavidH45/the-eye.git` (public — no token needed)
+2. **Projects → Create Project ▾ → From Git Repo**
+   - Sync Name: `theeye`
+   - Repository: the one you just added · Branch: `main`
+   - **Compose File Path:** `docker-compose.arcane.yml`
+   - *Auto Sync* optional (polls GitHub and redeploys on new commits)
+   - Create Sync
+3. On the project page, open the **Environment** editor and add:
    ```
-   cd theeye
-   docker build -t theeye:latest .
-   docker images | grep theeye        # confirm it exists
+   DISCORD_TOKEN=your-bot-token
+   TARGET_USER_ID=549541718840705035
+   HEARTBEAT_SECONDS=30
    ```
-2. In Arcane → **Projects** (called *Stacks* in older builds) → **Create**:
-   - Name: `theeye`
-   - Compose: paste the contents of [`docker-compose.arcane.yml`](docker-compose.arcane.yml)
-     (it uses `image: theeye:latest` + `pull_policy: never` instead of `build:`)
-   - **Environment variables** editor — add:
-     ```
-     DISCORD_TOKEN=your-bot-token
-     TARGET_USER_ID=549541718840705035
-     HEARTBEAT_SECONDS=30
-     ```
-   - Deploy.
-3. Dashboard: `http://<host>:8080`. Use the container's **Console/Exec** tab for
+4. Click **Build & Deploy** (the `build:` directive makes Arcane build first).
+5. Dashboard: `http://<host>:8080`. Use the container's **Console/Exec** tab for
    `node scripts/reset.js` or `node scripts/seed.js --force`.
-4. **Updating:** rebuild on the host (`docker build -t theeye:latest .`), then
-   redeploy / recreate the stack in Arcane so it picks up the new image.
+6. **Updating:** push to `main`, then **Build & Deploy** again (or let Auto Sync
+   do it).
 
-If Arcane has filesystem access to its projects directory, you can instead drop
-this whole repo into `.../stacks/theeye/`, rename `docker-compose.yml` in place,
-and Arcane will build `build: .` itself — no manual `docker build` needed.
+### Portainer / Dockge / Arcane without git sync
 
-Prefer a registry? Build and push once
-(`docker build -t ghcr.io/<you>/theeye:latest . && docker push ...`), then set
-`image: ghcr.io/<you>/theeye:latest` and remove `pull_policy: never`.
+Build the image on the Docker host once, then paste the stack:
+
+1. On the host: `git clone … && cd the-eye && docker build -t theeye:latest .`
+2. New stack → paste [`docker-compose.arcane.yml`](docker-compose.arcane.yml) →
+   set `DISCORD_TOKEN` / `TARGET_USER_ID` in the env editor → deploy. The
+   pre-built `theeye:latest` image is reused.
+3. **Updating:** `docker build -t theeye:latest .` again, then recreate the stack.
+
+Prefer a registry? `docker build -t ghcr.io/<you>/theeye:latest . && docker push …`,
+then set `image: ghcr.io/<you>/theeye:latest` and drop the `build:` line.
 
 ## Trying it without real data
 
