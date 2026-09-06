@@ -1,0 +1,20 @@
+{
+  "name": "the-eye",
+  "version": "1.0.0",
+  "description": "Track a Discord user's presence, activity and listening history, and view detailed metrics on a local dashboard.",
+  "type": "commonjs",
+  "main": "src/index.js",
+  "scripts": {
+    "start": "node src/index.js",
+    "bot": "node src/bot.js",
+    "web": "node src/server.js",
+    "reset": "node scripts/reset.js"
+  },
+  "license": "MIT",
+  "dependencies": {
+    "better-sqlite3": "^11.8.1",
+    "discord.js": "^14.16.3",
+    "dotenv": "^16.4.7",
+    "express": "^4.21.2"
+  }
+}

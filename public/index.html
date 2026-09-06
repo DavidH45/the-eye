@@ -1,0 +1,88 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>The Eye</title>
+  <link rel="stylesheet" href="styles.css" />
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.4/chart.umd.min.js" defer></script>
+  <script src="app.js" defer></script>
+</head>
+<body>
+  <header>
+    <div class="brand">
+      <span class="eye">&#128065;</span>
+      <div>
+        <h1>The Eye</h1>
+        <p id="target" class="muted">tracking&hellip;</p>
+      </div>
+    </div>
+    <div id="live" class="live">
+      <span class="dot" id="live-dot"></span>
+      <span id="live-text">connecting&hellip;</span>
+    </div>
+  </header>
+
+  <section class="controls">
+    <div class="presets">
+      <button data-preset="1">24h</button>
+      <button data-preset="7" class="active">7d</button>
+      <button data-preset="30">30d</button>
+      <button data-preset="90">90d</button>
+      <button data-preset="all">All</button>
+    </div>
+    <label>From <input type="datetime-local" id="from" /></label>
+    <label>To <input type="datetime-local" id="to" /></label>
+    <label>Resolution
+      <select id="bucket">
+        <option value="minute">Minute</option>
+        <option value="hour" selected>Hour</option>
+        <option value="day">Day</option>
+      </select>
+    </label>
+    <button id="apply" class="primary">Apply</button>
+  </section>
+
+  <section id="cards" class="cards"></section>
+
+  <section class="grid-2">
+    <div class="panel">
+      <h2>Status split</h2>
+      <canvas id="statusChart"></canvas>
+    </div>
+    <div class="panel">
+      <h2>Activity over time</h2>
+      <canvas id="timeChart"></canvas>
+    </div>
+  </section>
+
+  <section class="panel">
+    <h2>When they're online <span class="muted">(local time &mdash; darker = more active)</span></h2>
+    <div id="heatmap" class="heatmap"></div>
+  </section>
+
+  <section class="grid-2">
+    <div class="panel">
+      <h2>Top tracks</h2>
+      <canvas id="tracksChart"></canvas>
+    </div>
+    <div class="panel">
+      <h2>Top artists</h2>
+      <canvas id="artistsChart"></canvas>
+    </div>
+  </section>
+
+  <section class="panel">
+    <div class="tabs">
+      <button data-tab="listening" class="active">Listening log</button>
+      <button data-tab="activities">Activity log</button>
+      <button data-tab="timeline">Status timeline</button>
+    </div>
+    <div id="tab-listening" class="tabpane"></div>
+    <div id="tab-activities" class="tabpane" hidden></div>
+    <div id="tab-timeline" class="tabpane" hidden></div>
+  </section>
+
+  <footer class="muted">The Eye &mdash; local presence analytics. Data is stored only on this machine.</footer>
+</body>
+</html>

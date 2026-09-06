@@ -1,0 +1,36 @@
+# The Eye — compose file for Arcane / Portainer / Dockge and other
+# UI managers that deploy pre-built images (no build context).
+#
+# Build the image ONCE on the Docker host before deploying this stack:
+#   docker build -t theeye:latest .
+#
+# Then paste this file into Arcane as a new Project/Stack and set the
+# DISCORD_TOKEN and TARGET_USER_ID variables in Arcane's environment editor.
+
+services:
+  theeye:
+    image: theeye:latest
+    pull_policy: never          # use the locally-built image, don't hit a registry
+    container_name: theeye_service
+    init: true
+    environment:
+      DISCORD_TOKEN: ${DISCORD_TOKEN:?set DISCORD_TOKEN in the Arcane env editor}
+      TARGET_USER_ID: ${TARGET_USER_ID:?set TARGET_USER_ID in the Arcane env editor}
+      HEARTBEAT_SECONDS: ${HEARTBEAT_SECONDS:-30}
+      DB_PATH: /app/data/theeye.db
+      PORT: "3000"
+    ports:
+      - "8080:3000"
+    volumes:
+      - theeye_data:/app/data
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://localhost:3000/api/meta').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
+
+volumes:
+  theeye_data:
+    driver: local

@@ -1,0 +1,26 @@
+services:
+  theeye:
+    build: .
+    container_name: theeye_service
+    init: true
+    env_file:
+      - .env
+    environment:
+      # keep the DB on the mounted volume regardless of what .env says
+      DB_PATH: /app/data/theeye.db
+      PORT: "3000"
+    ports:
+      - "8080:3000"
+    volumes:
+      - theeye_data:/app/data
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://localhost:3000/api/meta').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
+
+volumes:
+  theeye_data:
+    driver: local
