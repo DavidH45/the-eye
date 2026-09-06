@@ -31,6 +31,52 @@ async function findPresence() {
   return { guild: null, presence: null, found: false };
 }
 
+let checkCount = 0;
+let checking = false;
+
+/**
+ * Actively re-read the target's presence, reconcile it into the DB and log a
+ * one-line summary. Runs on startup and on every heartbeat tick, so the log
+ * shows the bot is alive even when the user's presence never changes.
+ */
+async function check(reason) {
+  if (checking) {
+    console.log(`[bot] ${new Date().toISOString()} check (${reason}) skipped: previous check still running`);
+    return;
+  }
+  checking = true;
+  const n = ++checkCount;
+  const startedAt = Date.now();
+  try {
+    const { guild, presence, found } = await findPresence();
+    const ts = Date.now();
+    reconcile(presence, ts);
+    store.setMeta('last_heartbeat', ts);
+
+    const status = presence ? presence.status : 'offline';
+    const acts = presence?.activities?.map((a) => a.name).join(', ') || 'none';
+    const clients = presence?.clientStatus
+      ? Object.keys(presence.clientStatus).join('+')
+      : 'none';
+    console.log(
+      `[bot] ${new Date(ts).toISOString()} check #${n} (${reason}): ` +
+        `status=${status} clients=${clients} activities=[${acts}] ` +
+        `guild=${guild ? guild.name : '-'} guilds=${client.guilds.cache.size} ` +
+        `took=${ts - startedAt}ms`
+    );
+    if (!found) {
+      console.warn(
+        `[bot] check #${n}: target ${TARGET} not found in any shared server ` +
+          `(invite the bot to a server they are in, and enable the SERVER MEMBERS + PRESENCE intents)`
+      );
+    }
+  } catch (err) {
+    console.error(`[bot] check #${n} (${reason}) failed:`, err.message);
+  } finally {
+    checking = false;
+  }
+}
+
 client.once(Events.ClientReady, async (c) => {
   console.log(`[bot] logged in as ${c.user.tag}`);
   console.log(`[bot] tracking user ${TARGET} across ${c.guilds.cache.size} guild(s)`);
@@ -42,26 +88,21 @@ client.once(Events.ClientReady, async (c) => {
     );
   }
 
-  const { presence, found } = await findPresence();
-  if (!found) {
-    console.warn(
-      `[bot] WARNING: the bot does not share a server with ${TARGET}, or the SERVER MEMBERS intent is off. ` +
-        `Invite the bot to a server the user is in and enable the privileged intents.`
-    );
-  }
-  reconcile(presence, Date.now());
-  console.log(`[bot] initial status: ${presence ? presence.status : 'offline'}`);
+  await check('startup');
 
-  store.setMeta('last_heartbeat', Date.now());
-  setInterval(() => store.setMeta('last_heartbeat', Date.now()), config.HEARTBEAT_SECONDS * 1000);
+  console.log(`[bot] heartbeat every ${config.HEARTBEAT_SECONDS}s`);
+  setInterval(() => check('heartbeat'), config.HEARTBEAT_SECONDS * 1000);
 });
 
 client.on(Events.PresenceUpdate, (oldPresence, newPresence) => {
   if (!newPresence || newPresence.userId !== TARGET) return;
   const ts = Date.now();
   reconcile(newPresence, ts);
+  const from = oldPresence ? oldPresence.status : 'unknown';
   const act = newPresence.activities?.map((a) => a.name).join(', ') || 'none';
-  console.log(`[bot] ${new Date(ts).toISOString()} status=${newPresence.status} activities=[${act}]`);
+  console.log(
+    `[bot] ${new Date(ts).toISOString()} presenceUpdate: ${from} -> ${newPresence.status} activities=[${act}]`
+  );
 });
 
 function shutdown() {

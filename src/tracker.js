@@ -58,6 +58,7 @@ function reconcileStatus(status, ts) {
   if (open && open.status === status) return; // unchanged
   if (open) store.closeStatusSession(open.id, ts, 'change');
   store.openStatusSession(status, ts);
+  console.log(`[tracker] status ${open ? open.status : 'none'} -> ${status}`);
 }
 
 function reconcileActivities(activities, ts) {
@@ -68,11 +69,17 @@ function reconcileActivities(activities, ts) {
 
   // Close activities that are no longer present.
   for (const row of open) {
-    if (!seen.has(row.akey)) store.closeActivitySession(row.id, ts, 'change');
+    if (!seen.has(row.akey)) {
+      store.closeActivitySession(row.id, ts, 'change');
+      console.log(`[tracker] activity ended: ${row.name || row.akey}`);
+    }
   }
   // Open activities that just started.
   for (const a of normalized) {
-    if (!openByKey.has(a.akey)) store.openActivitySession({ ...a, started_at: ts });
+    if (!openByKey.has(a.akey)) {
+      store.openActivitySession({ ...a, started_at: ts });
+      console.log(`[tracker] activity started: ${a.name} (type ${a.type})`);
+    }
   }
 }
 
