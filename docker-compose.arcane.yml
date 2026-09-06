@@ -12,7 +12,8 @@
 services:
   theeye:
     build: .
-    image: theeye:latest        # tag the built image; reused if already present
+    image: theeye:latest        # name for the locally-built image
+    pull_policy: build          # always build from ./Dockerfile, never pull from a registry
     container_name: theeye_service
     init: true
     environment:

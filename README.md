@@ -85,7 +85,10 @@ Arcane clones the repo and builds the image for you; nothing to do on the host.
    TARGET_USER_ID=549541718840705035
    HEARTBEAT_SECONDS=30
    ```
-4. Click **Build & Deploy** (the `build:` directive makes Arcane build first).
+4. Click **Build** first, then **Deploy** (or **Build & Deploy** in one go). Do
+   *not* use plain **Deploy** on the first run — with no local image yet Arcane
+   tries to pull `theeye:latest` from a registry and fails. `pull_policy: build`
+   in the compose file tells it to build, but the image still has to exist once.
 5. Dashboard: `http://<host>:8080`. Use the container's **Console/Exec** tab for
    `node scripts/reset.js` or `node scripts/seed.js --force`.
 6. **Updating:** push to `main`, then **Build & Deploy** again (or let Auto Sync
