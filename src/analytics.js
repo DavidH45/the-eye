@@ -15,8 +15,45 @@ const selectActivity = db.prepare(`
   WHERE started_at < @to AND (ended_at IS NULL OR ended_at > @from)
   ORDER BY started_at
 `);
+const selectEvents = db.prepare(`
+  SELECT ts, desktop, mobile, web FROM presence_events
+  WHERE ts >= ? AND ts <= ? ORDER BY ts
+`);
 
 const now = () => Date.now();
+
+const CLIENTS = ['desktop', 'mobile', 'web'];
+const CLIENT_GAP = 15 * 60000; // treat a > 15 min hole in the log as "no data"
+
+// Collapse the raw presence log covering [from, to] into spans annotated with
+// the set of Discord clients that were reported online during each one.
+function clientSpans(from, to) {
+  const rows = selectEvents.all(from - CLIENT_GAP, to + CLIENT_GAP);
+  const spans = [];
+  for (let i = 0; i < rows.length - 1; i++) {
+    const gap = rows[i + 1].ts - rows[i].ts;
+    if (gap <= 0 || gap > CLIENT_GAP) continue;
+    const on = CLIENTS.filter((k) => rows[i][k]);
+    if (on.length) spans.push({ a: rows[i].ts, b: rows[i + 1].ts, on });
+  }
+  return spans;
+}
+
+// Which clients covered a session window [start, end], ranked by how much of it
+// each one was online for. Returns [] when there's nothing to attribute.
+function clientsFor(spans, start, end) {
+  const ms = { desktop: 0, mobile: 0, web: 0 };
+  for (const s of spans) {
+    const a = Math.max(s.a, start);
+    const b = Math.min(s.b, end);
+    if (b <= a) continue;
+    for (const k of s.on) ms[k] += b - a;
+  }
+  return CLIENTS
+    .filter((k) => ms[k] > 0)
+    .sort((x, y) => ms[y] - ms[x])
+    .map((k) => ({ client: k, seconds: Math.round(ms[k] / 1000) }));
+}
 
 function clip(s, from, to) {
   const a = Math.max(s.started_at, from);
@@ -222,14 +259,18 @@ function clientTotals(from, to) {
 /* ------------------------------ timeline -------------------------------- */
 
 function timeline(from, to) {
+  const spans = to - from <= 120 * DAY ? clientSpans(from, to) : [];
   return selectStatus.all({ from, to }).map((s) => {
     const c = clip(s, from, to);
+    const start = c ? c[0] : s.started_at;
+    const end = c ? c[1] : (s.ended_at ?? now());
     return {
       status: s.status,
-      start: c ? c[0] : s.started_at,
+      start,
       end: c ? c[1] : s.ended_at,
       ongoing: s.ended_at == null,
       seconds: c ? Math.round((c[1] - c[0]) / 1000) : 0,
+      clients: clientsFor(spans, start, end),
     };
   });
 }
@@ -309,6 +350,7 @@ function heatmap(from, to, tzOffsetMin) {
 
 function listening(from, to) {
   const acts = selectActivity.all({ from, to }).filter((a) => a.type === 2);
+  const spans = to - from <= 120 * DAY ? clientSpans(from, to) : [];
   let totalMs = 0;
   const byTrack = new Map();
   const byArtist = new Map();
@@ -343,6 +385,7 @@ function listening(from, to) {
       end: c[1],
       seconds: Math.round(dur / 1000),
       ongoing: a.ended_at == null,
+      clients: clientsFor(spans, c[0], c[1]),
     });
   }
 
@@ -363,6 +406,7 @@ function listening(from, to) {
 
 function activities(from, to) {
   const acts = selectActivity.all({ from, to }).filter((a) => a.type !== 2);
+  const spans = to - from <= 120 * DAY ? clientSpans(from, to) : [];
   const byName = new Map();
   const sessions = [];
   for (const a of acts) {
@@ -375,7 +419,7 @@ function activities(from, to) {
     rec.ms += dur;
     rec.sessions += 1;
     byName.set(label, rec);
-    sessions.push({ label, kind, details: a.details, start: c[0], end: c[1], seconds: Math.round(dur / 1000), ongoing: a.ended_at == null });
+    sessions.push({ label, kind, details: a.details, start: c[0], end: c[1], seconds: Math.round(dur / 1000), ongoing: a.ended_at == null, clients: clientsFor(spans, c[0], c[1]) });
   }
   return {
     top: [...byName.values()].sort((a, b) => b.ms - a.ms)

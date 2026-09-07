@@ -6,6 +6,8 @@ const COLORS = {
   active: '#5865f2', listen: '#1db954',
 };
 const STATUSES = ['online', 'idle', 'dnd', 'offline'];
+const CLIENT_LABEL = { desktop: 'Desktop', mobile: 'Mobile', web: 'Web' };
+const CLIENT_ICON = { desktop: '🖥️', mobile: '📱', web: '🌐' };
 const $ = (s) => document.querySelector(s);
 const $$ = (s) => [...document.querySelectorAll(s)];
 
@@ -127,6 +129,23 @@ async function refreshNow() {
 }
 
 const esc = (s) => String(s).replace(/[&<>"]/g, (ch) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[ch]));
+
+/* ------------------------------ devices ---------------------------- */
+
+const cname = (k) => CLIENT_LABEL[k] || cap(k);
+
+// Table cell: one badge per client, most-used first, with a per-client tooltip.
+function devices(list) {
+  if (!list || !list.length) return '<span class="muted">&mdash;</span>';
+  return list.map((c) =>
+    `<span class="dev" data-tip="${cname(c.client)} &middot; ${human(c.seconds)}">${CLIENT_ICON[c.client] || ''} ${cname(c.client)}</span>`
+  ).join(' ');
+}
+
+// Tooltip line: "on Desktop, Mobile".
+function deviceLine(list) {
+  return list && list.length ? 'on ' + list.map((c) => cname(c.client)).join(', ') : '';
+}
 
 /* ------------------------------ cards ------------------------------- */
 
@@ -304,7 +323,8 @@ function renderRibbon(tl) {
     seg.className = 'seg ' + s.status;
     seg.style.left = (100 * (a - state.from) / span) + '%';
     seg.style.width = Math.max(0.12, 100 * (b - a) / span) + '%';
-    seg.dataset.tip = `<b>${cap(s.status)}</b><br>${tm(a)} – ${s.ongoing ? 'now' : tm(b)}<br>${human(s.seconds || (b - a) / 1000)}`;
+    seg.dataset.tip = `<b>${cap(s.status)}</b><br>${tm(a)} – ${s.ongoing ? 'now' : tm(b)}<br>${human(s.seconds || (b - a) / 1000)}`
+      + (deviceLine(s.clients) ? `<br>${deviceLine(s.clients)}` : '');
     el.appendChild(seg);
   }
   if (now >= state.from && now <= state.to + 5000) {
@@ -424,8 +444,8 @@ function renderListening(l) {
   barChart('artists', l.topArtists.slice(0, 12).map((x) => x.name), l.topArtists.slice(0, 12).map((x) => x.seconds), COLORS.listen);
 
   $('#tab-listening').innerHTML = table(
-    ['When', 'Track', 'Artist', 'Album', 'Duration'],
-    l.sessions.map((s) => [dt(s.start), esc(s.title || '?'), esc(s.artist || '?'), esc(s.album || ''), human(s.seconds) + (s.ongoing ? ' …' : '')]),
+    ['When', 'Track', 'Artist', 'Album', 'Duration', 'Device'],
+    l.sessions.map((s) => [dt(s.start), esc(s.title || '?'), esc(s.artist || '?'), esc(s.album || ''), human(s.seconds) + (s.ongoing ? ' …' : ''), devices(s.clients)]),
   ) || '<p class="muted">No listening data in this range.</p>';
 }
 
@@ -453,8 +473,8 @@ function renderActivities(a) {
         table(['App / status', 'Kind', 'Total', 'Sessions'], a.top.map((t) => [esc(t.label), t.kind, human(t.seconds), t.sessions]))
       : '') +
     `<h3 class="muted" style="margin-top:14px">Sessions</h3>` +
-    (table(['When', 'App / status', 'Kind', 'Details', 'Duration'],
-      a.sessions.map((s) => [dt(s.start), esc(s.label), s.kind, esc(s.details || ''), human(s.seconds) + (s.ongoing ? ' …' : '')]))
+    (table(['When', 'App / status', 'Kind', 'Details', 'Duration', 'Device'],
+      a.sessions.map((s) => [dt(s.start), esc(s.label), s.kind, esc(s.details || ''), human(s.seconds) + (s.ongoing ? ' …' : ''), devices(s.clients)]))
       || '<p class="muted">No activity data in this range.</p>');
 }
 
@@ -462,12 +482,13 @@ function renderActivities(a) {
 
 function renderTimelineTable(t) {
   $('#tab-timeline').innerHTML = table(
-    ['Status', 'Start', 'End', 'Duration'],
+    ['Status', 'Start', 'End', 'Duration', 'Device'],
     [...t].reverse().map((s) => [
       `<span class="pill ${s.status}">${s.status}</span>`,
       dt(s.start),
       s.ongoing ? 'ongoing' : dt(s.end),
       human(s.seconds),
+      devices(s.clients),
     ]),
   ) || '<p class="muted">No data in this range.</p>';
 }

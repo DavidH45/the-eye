@@ -179,6 +179,8 @@ tbody tr:hover { background: var(--panel-2); }
 .pill.idle { background: rgba(250,166,26,.18); color: var(--idle); }
 .pill.dnd { background: rgba(237,66,69,.18); color: var(--dnd); }
 .pill.offline { background: rgba(116,127,141,.18); color: var(--offline); }
+.dev { display: inline-flex; align-items: center; gap: 4px; font-size: 12px; color: var(--muted); }
+.dev + .dev { margin-left: 8px; }
 
 /* ------------------------------- tooltip ----------------------------- */
 .tip {
